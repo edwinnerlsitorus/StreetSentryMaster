@@ -8,3 +8,7 @@
 .td{
     align-items: center;
 }
+
+#logo{
+    justify-content: center;
+}

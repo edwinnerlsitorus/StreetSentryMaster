@@ -8,15 +8,15 @@
 
     $conn = new mysqli($serverName, $username, $password, $database);
 
-    if($conn->connection_error){
-        die($conn->connection_error);
+    if($conn->connect_error){
+        die($conn->connect_error);
     }
 
     $sql = "SELECT * FROM information";
     $result = $conn->query($sql);
 
     if(!$result){
-        die($conn->connection_error);
+        die($conn->connect_error);
     }
 ?>
 
@@ -35,6 +35,7 @@
                         <h1 class="h3 mb-0 text-gray-800">Additional Information</h1>
                     </div>
                     <a href="additionalInformationForm.php" class="btn btn-primary">Add Information</a>
+                    <a href="generate_pdf.php" class="btn btn-primary">Download PDF</a>
                 </div>
 
                 <div class="card-body">
@@ -43,10 +44,13 @@
                             <tr>
                             <th scope="col">No</th>
                             <th scope="col">Provinsi</th>
-                            <th scope="col">Balai Besar</th>
+                            <th scope="col">Balai Besar/Balai</th>
                             <th scope="col">Satuan Kerja</th>
-                            <th scope="col">Ruas Jalan</th>
+                            <th scope="col">PPK</th>
+                            <th scope="col">Nomor Ruas Jalan</th>
+                            <th scope="col">Nama Ruas Jalan</th>
                             <th scope="col">Tanggal Survey</th>
+                            <th scope="col">Cuaca</th>
                             <th scope="col">Status Jalan</th>
                             <th scope="col">Km Awal</th>
                             <th scope="col">Km Akhir</th>
@@ -62,8 +66,11 @@
                                     <td><?php echo $row['province']; ?></td>
                                     <td><?php echo $row['balai_besar']; ?></td>
                                     <td><?php echo $row['satker']; ?></td>
-                                    <td><?php echo $row['ruas_jalan']; ?></td>
+                                    <td><?php echo $row['ppk']; ?></td>
+                                    <td><?php echo $row['nomor_ruas_jalan']; ?></td>
+                                    <td><?php echo $row['nama_ruas_jalan']; ?></td>
                                     <td><?php echo $row['tanggal_survey']; ?></td>
+                                    <td><?php echo $row['cuaca']; ?></td>
                                     <td><?php echo $row['status_jalan']; ?></td>
                                     <td><?php echo $row['awal']; ?></td>
                                     <td><?php echo $row['akhir']; ?></td>

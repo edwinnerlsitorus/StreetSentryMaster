@@ -31,5 +31,3 @@
 
     $stmt->close(); $mysqli->close(); 
 }
-
-?>

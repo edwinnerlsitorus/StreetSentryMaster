@@ -35,5 +35,3 @@ for($i = 0; $i<sizeof($dataAkurasi); $i++){
 print_r($dataMaps);
 
 // AIzaSyD0qk_u7O-1j-gnm6VQiOF02qpxY9ql8R0
-
-?>

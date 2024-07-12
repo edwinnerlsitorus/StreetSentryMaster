@@ -1,49 +1,61 @@
-<?php session_start(); if (isset($_POST['login'])) { 
+<?php
+include 'koneksi.php';
 
-    // Connect to the database 
-    $mysqli = new mysqli("localhost", "root", "", "street_sentry"); 
+// Menerima data dari JavaScript
+$username = $_POST['username'];
+$password = $_POST['password'];
 
-    // Check for errors 
-    if ($mysqli->connect_error) { die("Connection failed: " . $mysqli->connect_error); } 
-
-    // Prepare and bind the SQL statement 
-    $stmt = $mysqli->prepare("SELECT id, password FROM user WHERE username = ?"); $stmt->bind_param("s", $username); 
-
-    // Get the form data 
-    $username = $_POST['username']; $password = $_POST['password']; 
-
-    // Execute the SQL statement 
-    $stmt->execute(); $stmt->store_result(); 
-
-    // Check if the user exists 
-    if ($stmt->num_rows > 0) { 
-
-        // Bind the result to variables 
-        $stmt->bind_result($id, $hashed_password); 
-
-        // Fetch the result 
-        $stmt->fetch(); 
-
-        // Verify the password 
-        if (password_verify($password, $hashed_password)) { 
-
-        // Set the session variables 
-            $_SESSION['loggedin'] = true; $_SESSION['id'] = $id; $_SESSION['username'] = $username; 
-
-            // Redirect to the user's dashboard 
-            header("Location: ../index.php"); exit; 
-        } 
-        else { 
-            echo "<script>alert('Username atau Password Salah');</script>";
-            header("Location: login.php"); exit; 
-        } 
-    } 
-    else { 
-        echo "User not found!"; 
-    } 
-
-    // Close the connection 
-    $stmt->close(); $mysqli->close(); 
+// Memeriksa apakah username dan password diisi
+if (empty($username) || empty($password)) {
+    echo 'empty_fields';
+    exit();
 }
 
-?>
+// Membuat koneksi baru menggunakan MySQLi
+$koneksi = new mysqli($host, $user, $pass, $db);
+
+// Memeriksa apakah koneksi berhasil
+if ($koneksi->connect_error) {
+    die("Cannot connect to database: " . $koneksi->connect_error);
+}
+
+// Query untuk memeriksa apakah username terdaftar di basis data
+$query = "SELECT * FROM user WHERE username = ?";
+$statement = $koneksi->prepare($query);
+
+// Bind parameter
+$statement->bind_param("s", $username);
+
+// Eksekusi query
+$statement->execute();
+
+// Mengambil hasil query
+$result = $statement->get_result();
+
+// Memeriksa apakah username ditemukan
+if ($result->num_rows == 1) {
+    // Username ditemukan, lanjutkan dengan memeriksa password
+    $row = $result->fetch_assoc();
+    if (password_verify($password, $row['password'])) {
+        // Jika password cocok, set session dan redirect
+        session_start();
+        $_SESSION['loggedin'] = true;
+        $_SESSION['id'] = $row['id'];
+        $_SESSION['username'] = $username;
+
+        // Kirim respons sukses
+        echo "success";
+    } else {
+        // Jika password salah, kirim respons "incorrect_password"
+        echo "incorrect_password";
+    }
+} else {
+    // Jika username tidak ditemukan, kirim respons "not_registered"
+    echo "not_registered";
+}
+
+// Menutup statement
+$statement->close();
+
+// Menutup koneksi
+$koneksi->close();

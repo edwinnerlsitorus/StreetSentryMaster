@@ -1,43 +1,42 @@
 <?php
-    session_start();
-    if($_SESSION['username']==NULL){
-        // Haven't log in
-        header("Location:../auth/login.php");
+session_start();
+if ($_SESSION['username'] == NULL) {
+    // Haven't logged in
+    header("Location:../auth/login.php");
+}
+require 'vendor/autoload.php';
+
+// Database connection
+$servername = "localhost";
+$username = "root";
+$password = "";
+$dbname = "street_sentry";
+
+// Create connection
+$conn = new mysqli($servername, $username, $password, $dbname);
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+$sql = "SELECT lat, lng FROM lokasi_kerusakan";
+$result = $conn->query($sql);
+
+$dataMaps = array();
+$lastLat = 0;
+$lastLng = 0;
+
+if ($result->num_rows > 0) {
+    while($row = $result->fetch_assoc()) {
+        $dataMaps[] = array($row['lat'], $row['lng']);
+        $lastLat = $row['lat'];
+        $lastLng = $row['lng'];
     }
-    require 'vendor/autoload.php';
-
-    use PhpOffice\PhpSpreadsheet\Spreadsheet;
-    use PhpOffice\PhpSpreadsheet\Reader\Xlsx;
-
-    $filePath = 'DataAkurasi/akurasi.xlsx';
-    
-    $reader = new Xlsx();
-    $spreadsheet = $reader->load($filePath);
-    
-    $sheet = $spreadsheet->getActiveSheet();
-    $data = $sheet->toArray();
-    
-    // print_r($data);
-    $dataAkurasi = array();
-    
-    foreach ($data as $row) {
-        foreach ($row as $cell) {
-            // $dataAkurasi = $cell.",";
-    
-        array_push($dataAkurasi, $cell);
-        }
-    }
-
-    $dataMaps = array();
-
-    for($i = 0; $i<sizeof($dataAkurasi); $i++){
-        if($i>1 && $i%2==0){
-            $dataKor = $dataAkurasi[$i].",".$dataAkurasi[$i+1];
-            array_push($dataMaps, $dataKor);
-        }
-    }
-
-    // print_r($dataMaps);
+} else {
+    echo "0 results";
+}
+$conn->close();
 ?>
 <html> 
 <head> 
@@ -62,9 +61,20 @@
     <!-- Custom styles for this template-->
     <link href="css/sb-admin-2.min.css" rel="stylesheet">
     <link href="css/dashboard.css" type="text/css" rel="stylesheet">
+
+    <style>
+    .card-body {
+        margin-left: -23px; /* Menambahkan margin atas */
+        padding: 10px; /* Menambahkan padding untuk memberikan ruang di sekitar tabel */
+    }
+
+    table {
+        margin-bottom: 20px; /* Menambahkan margin bawah pada tabel */
+    }
+    </style>
+
 </head> 
 <body id="page-top">
-
 
 <div id="wrapper">
 
@@ -185,89 +195,74 @@
                 <div id="map" style="width: 100%; height: 50%;"></div>
 
                 <script type="text/javascript">
-                // var locations = [
-                // ['Bondi Beach', -33.890542, 151.274856, 4],
-                // ['Coogee Beach', -33.923036, 151.259052, 5],
-                // ['Cronulla Beach', -34.028249, 151.157507, 3],
-                // ['Manly Beach', -33.80010128657071, 151.28747820854187, 2],
-                // ['Maroubra Beach', -33.950198, 151.259302, 1]
-                // ];
-
-                var locations = <?php echo json_encode($dataMaps); ?>;
-
-                var map = new google.maps.Map(document.getElementById('map'), {
-                zoom: 15,
-                center: new google.maps.LatLng(<?php echo $dataMaps[0].",".$dataMaps[1]; ?>),
-                mapTypeId: google.maps.MapTypeId.ROADMAP
-                });
-
-                var infowindow = new google.maps.InfoWindow();
-
-                var marker, i;
-
-                <?php foreach($dataMaps as $coordinate){?>
-                    marker = new google.maps.Marker({
-                        position: new google.maps.LatLng(<?php echo $coordinate;?>),
-                        map: map
+                    var locations = <?php echo json_encode($dataMaps); ?>;
+                    var lastLat = <?php echo $lastLat; ?>;
+                    var lastLng = <?php echo $lastLng; ?>;
+                    var map = new google.maps.Map(document.getElementById('map'), {
+                        zoom: 15,
+                        center: new google.maps.LatLng(lastLat, lastLng),
+                        mapTypeId: google.maps.MapTypeId.ROADMAP
                     });
+                    var infowindow = new google.maps.InfoWindow();
+                    var geocoder = new google.maps.Geocoder();
+                    var marker, i;
 
-                    google.maps.event.addListener(marker, 'click', (function(marker, i) {
-                        return function() {
-                        infowindow.setContent(locations[i][0]);
-                        infowindow.open(map, marker);
-                        }
-                    })(marker, i));
-                <?php }?>
+                    for (i = 0; i < locations.length; i++) {
+                        marker = new google.maps.Marker({
+                            position: new google.maps.LatLng(locations[i][0], locations[i][1]),
+                            map: map
+                        });
 
-                // for (i = 0; i < locations.length; i++) {  
-                    
-                // }
+                        google.maps.event.addListener(marker, 'click', (function(marker, i) {
+                            return function() {
+                                var latlng = {lat: parseFloat(locations[i][0]), lng: parseFloat(locations[i][1])};
+                                geocoder.geocode({'location': latlng}, function(results, status) {
+                                    if (status === 'OK') {
+                                        if (results[0]) {
+                                            infowindow.setContent(results[0].formatted_address);
+                                            infowindow.open(map, marker);
+                                        } else {
+                                            window.alert('No results found');
+                                        }
+                                    } else {
+                                        window.alert('Geocoder failed due to: ' + status);
+                                    }
+                                });
+                            }
+                        })(marker, i));
+                    }
                 </script>
 
-
-<div class="card-body">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                            <th scope="col">Num</th>
-                            <th scope="col">Jalur</th>
-                            <th scope="col">Jarak</th>
-                            <th scope="col">Lubang</th>
-                            <th scope="col">Bergelombang</th>
-                            <th scope="col">Alur</th>
-                            <th scope="col">Jembul</th>
-                            <th scope="col">Ambles</th>
-                            <th scope="col">Pelepasan Butir</th>
-                            <th scope="col">Retak Buaya</th>
-                            <th scope="col">Retak Pinggir</th>
-                            <th scope="col">Retak Melintang</th>
-                            <th scope="col">Retak Memanjang</th>
-                            <th scope="col">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <th scope="row">1</th>
-                                <td>IT Del - Balige</td>
-                                <td>10 KM</td>
-                                <td>3</td>
-                                <td>3</td>
-                                <td>3</td>
-                                <td>3</td>
-                                <td>3</td>
-                                <td>3</td>
-                                <td>3</td>
-                                <td>3</td>
-                                <td>3</td>
-                                <td>3</td>
-                                <td>33</td>
-                            </tr>
-                    </table>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Num</th>
+                                        <th scope="col">Jalur</th>
+                                        <th scope="col">Jarak</th>
+                                        <th scope="col">Lubang</th>
+                                        <th scope="col">Bergelombang</th>
+                                        <th scope="col">Alur</th>
+                                        <th scope="col">Jembul</th>
+                                        <th scope="col">Ambles</th>
+                                        <th scope="col">Pelepasan Butir</th>
+                                        <th scope="col">Retak Buaya</th>
+                                        <th scope="col">Retak Pinggir</th>
+                                        <th scope="col">Retak Melintang</th>
+                                        <th scope="col">Retak Memanjang</th>
+                                        <th scope="col">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="data-table-body">
+                                    <!-- Rows will be added dynamically here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
-
         </div>
-
-
 
 </div>
 <!-- End of Main Content -->
@@ -293,7 +288,7 @@
 
     <!-- Logout Modal-->
     <div class="modal fade" id="logoutModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel"
-        aria-hidden="true">
+         aria-hidden="true">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header">
@@ -305,11 +300,48 @@
                 <div class="modal-body">Select "Logout" below if you are ready to end your current session.</div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancel</button>
-                    <a class="btn btn-primary" href="login.html">Logout</a>
+                    <button class="btn btn-primary" type="button" onclick="logout()">Logout</button>
                 </div>
             </div>
         </div>
     </div>
+
+    <script>
+        function logout() {
+            // Perform any logout actions here, such as clearing session storage or cookies
+            window.location.href = 'auth/login.php'; // Path to the login page in the auth folder
+        }
+
+        function fetchData() {
+            fetch('get_data_jumlah.php')
+                .then(response => response.json())
+                .then(data => {
+                    let tableBody = document.getElementById('data-table-body');
+                    tableBody.innerHTML = ''; // Clear any existing rows
+
+                    data.forEach((row, index) => {
+                        let tr = document.createElement('tr');
+
+                        let tdIndex = document.createElement('th');
+                        tdIndex.scope = "row";
+                        tdIndex.textContent = index + 1;
+                        tr.appendChild(tdIndex);
+
+                        for (let key in row) {
+                            let td = document.createElement('td');
+                            td.textContent = row[key];
+                            tr.appendChild(td);
+                        }
+
+                        tableBody.appendChild(tr);
+                    });
+                })
+                .catch(error => console.error('Error fetching data:', error));
+        }
+
+        // Call fetchData on page load
+        window.onload = fetchData;
+    </script>
 
     <!-- Bootstrap core JavaScript-->
     <script src="vendor/jquery/jquery.min.js"></script>
@@ -329,7 +361,57 @@
     <script src="js/demo/chart-pie-demo.js"></script>
     <script type="text/javascript" src="../js/googlemap.js"></script>
 
+    <script>
+$(document).ready(function () {
+    // Fungsi untuk memuat data dari server
+    function fetchData() {
+        $.ajax({
+            url: 'get_data_jumlah.php',  // Ganti dengan path ke file PHP yang mengembalikan data JSON
+            method: 'GET',
+            dataType: 'json',
+            success: function (data) {
+                var tableBody = $('#data-table-body');
+                tableBody.empty();  // Kosongkan isi tabel sebelum mengisi dengan data baru
 
+                // Loop data yang diterima dan tambahkan ke tabel
+                data.forEach(function (item, index) {
+                    var row = $('<tr>');
+
+                    // Kolom Num diambil dari index + 1 karena index dimulai dari 0
+                    var tdIndex = $('<td>').text(index + 1);
+                    row.append(tdIndex);
+
+                    // Kolom Jalur diambil dari jalur
+                    var tdJalur = $('<td>').text(item.jalur);
+                    row.append(tdJalur);
+
+                    // Lanjutkan dengan kolom lain sesuai kebutuhan
+                    row.append('<td>' + item.jarak + '</td>');
+                    row.append('<td>' + item.lubang + '</td>');
+                    row.append('<td>' + item.bergelombang + '</td>');
+                    row.append('<td>' + item.alur + '</td>');
+                    row.append('<td>' + item.jembul + '</td>');
+                    row.append('<td>' + item.ambles + '</td>');
+                    row.append('<td>' + item.pelepasan_butir + '</td>');
+                    row.append('<td>' + item.retak_buaya + '</td>');
+                    row.append('<td>' + item.retak_pinggir + '</td>');
+                    row.append('<td>' + item.retak_melintang + '</td>');
+                    row.append('<td>' + item.retak_memanjang + '</td>');
+                    row.append('<td>' + item.total + '</td>');
+
+                    tableBody.append(row);
+                });
+            },
+            error: function (error) {
+                console.log('Error:', error);
+            }
+        });
+    }
+
+    // Panggil fungsi fetchData secara otomatis setiap 5 detik (misalnya)
+    setInterval(fetchData, 5000);  // Interval diatur dalam milidetik (misalnya, 5000 = 5 detik)
+});
+</script>
 
 </body>
 </html>
